@@ -40,3 +40,17 @@ class EmbeddingGenerator:
         for chunk in chunks:
             chunk["embedding"] = self._get_embedding(chunk["chunk_text"])
         return chunks
+
+
+
+    def embed_query(self, query_text: str) -> List[float]:
+        """
+        Embeds a single user question (not a chunk).
+
+        Args:
+            query_text (str): The user's question, e.g. "What optimizer was used?"
+
+        Returns:
+            List[float]: The embedding vector for the question.
+        """
+        return self._get_embedding(query_text)
