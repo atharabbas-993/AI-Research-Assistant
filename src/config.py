@@ -31,3 +31,9 @@ CHUNK_OVERLAP = 200
 # File Paths
 # ------------------------
 RAW_PDF_DIR = "data/raw_pdfs"
+
+# ------------------------
+# Vector Database Settings
+# ------------------------
+CHROMA_DB_DIR = "data/chroma_db"       # folder where ChromaDB saves its files
+CHROMA_COLLECTION_NAME = "research_papers"  # name of our "table" of vectors
