@@ -21,6 +21,7 @@ HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
 # Just copy the part after huggingface.co/ from the model page URL.
 EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
+
 # ------------------------
 # Chunking Settings
 # ------------------------
@@ -37,3 +38,11 @@ RAW_PDF_DIR = "data/raw_pdfs"
 # ------------------------
 CHROMA_DB_DIR = "data/chroma_db"       # folder where ChromaDB saves its files
 CHROMA_COLLECTION_NAME = "research_papers"  # name of our "table" of vectors
+
+
+# ------------------------
+# LLM Settings
+# ------------------------
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+LLM_MODEL_NAME = "openai/gpt-oss-20b"   # good balance of quality + speed on Groq
+LLM_TEMPERATURE = 0.0   # 0 = focused/deterministic answers, less creative guessing
