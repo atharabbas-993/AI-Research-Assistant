@@ -1,9 +1,6 @@
-# question embedding + search
-# 	Only job: take a question → return relevant chunks	Feeds into rag_pipeline.py
 
 
-
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 from embeddings import EmbeddingGenerator
 from vectorstore import VectorStore
@@ -16,18 +13,24 @@ class Retriever:
     """
 
     def __init__(self):
-        # Reuse our existing classes instead of duplicating logic —
-        # this is why we built them as reusable classes earlier.
         self.embedder = EmbeddingGenerator()
         self.vectorstore = VectorStore()
 
-    def retrieve(self, question: str, top_k: int = 3) -> List[Dict]:
+    def retrieve(
+        self,
+        question: str,
+        top_k: int = 3,
+        source_filename: Optional[str] = None
+    ) -> List[Dict]:
         """
         Finds the most relevant chunks for a given question.
 
         Args:
             question (str): The user's question.
             top_k (int): How many chunks to retrieve. Default 3.
+            source_filename (Optional[str]): If provided, only search
+                                              within this specific PDF.
+                                              If None, search all documents.
 
         Returns:
             List[Dict]: Each item has "text", "page_number", "source_filename", "distance"
@@ -36,21 +39,27 @@ class Retriever:
         # Step 1: Convert the question into a vector (same model as chunks)
         question_embedding = self.embedder.embed_query(question)
 
-        # Step 2: Ask ChromaDB to find the top_k closest chunk vectors.
-        # query() does the cosine similarity math internally for us.
-        results = self.vectorstore.collection.query(
-            query_embeddings=[question_embedding],
-            n_results=top_k
-        )
+        # Step 2: Build query parameters dynamically.
+        # We only add "where" if a filename filter was actually given —
+        # ChromaDB expects no "where" key at all when we want to search everything,
+        # not an empty dict.
+        query_params = {
+            "query_embeddings": [question_embedding],
+            "n_results": top_k
+        }
 
-        # Step 3: ChromaDB returns results in a nested-list format
-        # (because it supports multiple queries at once — we only send one).
-        # We simplify it into a clean list of dicts for easier use later.
+        if source_filename:
+            query_params["where"] = {"source_filename": source_filename}
+
+        # Step 3: Run the search (filtered or unfiltered depending on above)
+        results = self.vectorstore.collection.query(**query_params)
+
+        # Step 4: Reformat ChromaDB's nested output into a clean list
         retrieved_chunks = []
 
-        documents = results["documents"][0]      # the actual chunk text
-        metadatas = results["metadatas"][0]       # page_number, source_filename
-        distances = results["distances"][0]       # how close each match is (lower = more similar)
+        documents = results["documents"][0]
+        metadatas = results["metadatas"][0]
+        distances = results["distances"][0]
 
         for doc, meta, dist in zip(documents, metadatas, distances):
             retrieved_chunks.append({

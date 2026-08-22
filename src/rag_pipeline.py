@@ -1,75 +1,48 @@
-# connects everything together
-# 	Orchestrator — calls all the above in order	Used by app/main.py
-
-
 # src/rag_pipeline.py
 
-from typing import Dict
+from typing import Dict, Optional
 
 from retriever import Retriever
+from reranker import Reranker
 from prompt import build_prompt
 from llm import LLM
+from config import RETRIEVE_TOP_K, RERANK_TOP_N
 
 
 class RAGPipeline:
-    """
-    The orchestrator — combines retrieval, prompt building, and LLM generation
-    into a single, reusable pipeline.
-
-    This is the ONE class the rest of the app (API, CLI, tests) will talk to.
-    """
-
-    def __init__(self, top_k: int = 3):
-        """
-        Args:
-            top_k (int): How many chunks to retrieve per question. Default 3.
-        """
-        # Initialize each component ONCE here.
-        # Why here and not inside ask()? Same reasoning as before —
-        # loading models/connections is "expensive" (time/resources),
-        # so we do it once when the pipeline is created, not on every question.
+    def __init__(self):
         self.retriever = Retriever()
+        self.reranker = Reranker()
         self.llm = LLM()
-        self.top_k = top_k
 
-    def ask(self, question: str) -> Dict:
-        """
-        Runs the full RAG flow for a single question.
+    def ask(self, question: str, source_filename: Optional[str] = None) -> Dict:
+        # Step 1: Retrieve a WIDER set of candidates (e.g. top 10)
+        retrieved_chunks = self.retriever.retrieve(
+            question,
+            top_k=RETRIEVE_TOP_K,
+            source_filename=source_filename
+        )
 
-        Args:
-            question (str): The user's question.
+        # Step 2: Rerank down to the BEST few (e.g. top 3)
+        reranked_chunks = self.reranker.rerank(
+            question,
+            retrieved_chunks,
+            top_n=RERANK_TOP_N
+        )
 
-        Returns:
-            Dict: {
-                "question": str,
-                "answer": str,
-                "sources": list of {source_filename, page_number, distance}
-            }
-        """
+        # Step 3: Build prompt using the reranked (higher quality) chunks
+        prompt = build_prompt(question, reranked_chunks)
 
-        # Step 1: Retrieve relevant chunks
-        retrieved_chunks = self.retriever.retrieve(question, top_k=self.top_k)
-
-        # Step 2: Build the prompt using retrieved context
-        prompt = build_prompt(question, retrieved_chunks)
-
-        # Step 3: Generate the answer from the LLM
+        # Step 4: Generate the answer
         answer = self.llm.generate_answer(prompt)
 
-        # Step 4: Package everything into one clean result.
-        # We return sources too — the app can show "answer + citations"
-        # to the user, which is a core RAG feature (Step 17 builds on this).
         sources = [
             {
                 "source_filename": chunk["source_filename"],
                 "page_number": chunk["page_number"],
-                "distance": chunk["distance"]
+                "rerank_score": chunk.get("rerank_score")
             }
-            for chunk in retrieved_chunks
+            for chunk in reranked_chunks
         ]
 
-        return {
-            "question": question,
-            "answer": answer,
-            "sources": sources
-        }
+        return {"question": question, "answer": answer, "sources": sources}

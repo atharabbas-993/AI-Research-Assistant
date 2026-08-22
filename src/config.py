@@ -46,3 +46,11 @@ CHROMA_COLLECTION_NAME = "research_papers"  # name of our "table" of vectors
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 LLM_MODEL_NAME = "openai/gpt-oss-20b"   # good balance of quality + speed on Groq
 LLM_TEMPERATURE = 0.0   # 0 = focused/deterministic answers, less creative guessing
+
+# ------------------------
+# Reranking Settings
+# ------------------------
+COHERE_API_KEY = os.getenv("COHERE_API_KEY")
+RERANK_MODEL_NAME = "rerank-v3.5"   # Cohere's current rerank model
+RETRIEVE_TOP_K = 10   # cast a wider net at retrieval stage...
+RERANK_TOP_N = 3       # ...then narrow down to the best 3 after reranking

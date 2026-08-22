@@ -1,14 +1,10 @@
 from rag_pipeline import RAGPipeline
 
-pipeline = RAGPipeline(top_k=3)
+pipeline = RAGPipeline()
 
-questions = [
-    "What is Embeddings?",
-    "why we use embeddings in RAG",
-    "What is the difference between Embeddings and Vectors?"
-]
+result = pipeline.ask("what is machine learning?")
 
-for q in questions:
-    result = pipeline.ask(q)
-    print(f"\nQ: {q}")
-    print(f"A: {result['answer']}")
+print("Answer:", result["answer"])
+print("\nSources (with rerank scores):")
+for s in result["sources"]:
+    print(f"- {s['source_filename']}, Page {s['page_number']} (score: {s['rerank_score']:.4f})")
