@@ -54,3 +54,10 @@ COHERE_API_KEY = os.getenv("COHERE_API_KEY")
 RERANK_MODEL_NAME = "rerank-v3.5"   # Cohere's current rerank model
 RETRIEVE_TOP_K = 10   # cast a wider net at retrieval stage...
 RERANK_TOP_N = 3       # ...then narrow down to the best 3 after reranking
+
+# ------------------------
+# Hallucination Prevention Settings
+# ------------------------
+# Cohere rerank scores range 0-1 (higher = more relevant).
+# Chunks scoring below this are considered "not relevant enough" to answer from.
+MIN_RELEVANCE_SCORE = 0.3
