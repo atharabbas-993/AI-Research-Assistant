@@ -82,3 +82,10 @@ JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60  # tokens expire after 1 hour
 
 DATABASE_URL = f"sqlite:///{os.path.join(BASE_DIR, 'data', 'app.db')}"
+
+
+# ------------------------
+# Logging Settings
+# ------------------------
+LOG_LEVEL = "INFO"
+LOG_FILE = os.path.join(BASE_DIR, "logs", "app.log")

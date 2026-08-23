@@ -4,8 +4,8 @@ env/
 
 # data folder
 data/
-
 data/eval_dataset.json
+
 # Environment variables & secrets
 .env
 

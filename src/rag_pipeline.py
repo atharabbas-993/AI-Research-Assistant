@@ -1,3 +1,5 @@
+# src/rag_pipeline.py
+
 from typing import Dict, Optional
 
 from src.retriever import Retriever
@@ -5,6 +7,9 @@ from src.reranker import Reranker
 from src.prompt import build_prompt
 from src.llm import LLM
 from src.config import RETRIEVE_TOP_K, RERANK_TOP_N, MIN_RELEVANCE_SCORE
+from src.logger import setup_logger
+
+logger = setup_logger(__name__)
 
 
 class RAGPipeline:
@@ -12,30 +17,25 @@ class RAGPipeline:
         self.retriever = Retriever()
         self.reranker = Reranker()
         self.llm = LLM()
+        logger.info("RAGPipeline initialized successfully.")
 
     def ask(self, question: str, source_filename: Optional[str] = None) -> Dict:
-        """
-        Runs the full RAG flow, with a relevance check to prevent
-        answering when nothing useful was actually found.
+        logger.info(f"Received question: '{question}' (filter: {source_filename})")
 
-        Returns:
-            Dict: {
-                "question": str,
-                "answer": str,
-                "sources": list of {source_filename, page_number, rerank_score},
-                "answered_from_context": bool   # False if we skipped the LLM
-            }
-        """
+        try:
+            retrieved_chunks = self.retriever.retrieve(
+                question,
+                top_k=RETRIEVE_TOP_K,
+                source_filename=source_filename
+            )
+        except Exception as e:
+            # Log the full error with traceback, then re-raise so the
+            # API layer (FastAPI) can turn it into a proper HTTP error.
+            logger.error(f"Retrieval failed for question '{question}': {e}", exc_info=True)
+            raise
 
-        # Step 1: Retrieve a wide candidate pool
-        retrieved_chunks = self.retriever.retrieve(
-            question,
-            top_k=RETRIEVE_TOP_K,
-            source_filename=source_filename
-        )
-
-        # Handle the edge case: no chunks at all (empty database, or filter matched nothing)
         if not retrieved_chunks:
+            logger.warning(f"No chunks retrieved for question: '{question}'")
             return {
                 "question": question,
                 "answer": "I couldn't find this information in the provided documents.",
@@ -43,21 +43,17 @@ class RAGPipeline:
                 "answered_from_context": False
             }
 
-        # Step 2: Rerank to find the TRUE best matches
-        reranked_chunks = self.reranker.rerank(
-            question,
-            retrieved_chunks,
-            top_n=RERANK_TOP_N
-        )
+        try:
+            reranked_chunks = self.reranker.rerank(question, retrieved_chunks, top_n=RERANK_TOP_N)
+        except Exception as e:
+            logger.error(f"Reranking failed for question '{question}': {e}", exc_info=True)
+            raise
 
-        # Step 3: SAFETY CHECK — is the best match actually relevant enough?
-        # reranked_chunks is already sorted best-first by Cohere, so index 0
-        # is our best candidate.
         best_score = reranked_chunks[0]["rerank_score"]
+        logger.info(f"Best rerank score: {best_score:.4f} (threshold: {MIN_RELEVANCE_SCORE})")
 
         if best_score < MIN_RELEVANCE_SCORE:
-            # Don't even call the LLM — we already know the context is too weak.
-            # This saves an API call AND guarantees we don't hallucinate.
+            logger.warning(f"Best score {best_score:.4f} below threshold — refusing to answer.")
             return {
                 "question": question,
                 "answer": "I couldn't find this information in the provided documents.",
@@ -65,9 +61,15 @@ class RAGPipeline:
                 "answered_from_context": False
             }
 
-        # Step 4: Build prompt and generate answer, since we have relevant context
         prompt = build_prompt(question, reranked_chunks)
-        answer = self.llm.generate_answer(prompt)
+
+        try:
+            answer = self.llm.generate_answer(prompt)
+        except Exception as e:
+            logger.error(f"LLM generation failed for question '{question}': {e}", exc_info=True)
+            raise
+
+        logger.info(f"Successfully answered question: '{question}'")
 
         sources = [
             {

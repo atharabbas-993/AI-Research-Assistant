@@ -14,8 +14,13 @@ from src.rag_pipeline import RAGPipeline
 from src.config import RAW_PDF_DIR
 from src.database import init_db, get_db, User
 from src.auth import hash_password, verify_password, create_access_token, get_current_user
+from src.logger import setup_logger
 
+logger = setup_logger(__name__)
 
+# ------------------------------------------------------------------
+# Create the FastAPI app instance
+# ------------------------------------------------------------------
 app = FastAPI(
     title="AI Research Assistant API",
     description="Upload research papers and ask questions about them.",
@@ -25,8 +30,11 @@ app = FastAPI(
 # Create the users table on startup if it doesn't exist yet
 init_db()
 
+# Initialize pipelines ONCE, when the app starts
 ingestion_pipeline = IngestionPipeline()
 rag_pipeline = RAGPipeline()
+
+logger.info("AI Research Assistant API started successfully.")
 
 
 # ------------------------------------------------------------------
@@ -55,18 +63,21 @@ class AskResponse(BaseModel):
 # ------------------------------------------------------------------
 @app.post("/register")
 def register(request: RegisterRequest, db: Session = Depends(get_db)):
-    # Check if username is already taken
+    logger.info(f"Registration attempt for username: '{request.username}'")
+
     existing_user = db.query(User).filter(User.username == request.username).first()
     if existing_user:
+        logger.warning(f"Registration failed — username already exists: '{request.username}'")
         raise HTTPException(status_code=400, detail="Username already registered.")
 
-    # NEVER store the plain password — hash it first
     new_user = User(
         username=request.username,
         hashed_password=hash_password(request.password)
     )
     db.add(new_user)
     db.commit()
+
+    logger.info(f"User registered successfully: '{request.username}'")
 
     return {"message": "User registered successfully."}
 
@@ -76,33 +87,32 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
 # ------------------------------------------------------------------
 @app.post("/login")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    """
-    OAuth2PasswordRequestForm expects standard 'username' and 'password'
-    form fields — this is what makes our /login endpoint compatible
-    with FastAPI's built-in "Authorize" button in the /docs UI.
-    """
+    logger.info(f"Login attempt for username: '{form_data.username}'")
+
     user = db.query(User).filter(User.username == form_data.username).first()
 
-    # Check BOTH that the user exists AND the password is correct,
-    # using a generic error message for both cases — this avoids
-    # revealing whether a username exists at all (security best practice).
     if not user or not verify_password(form_data.password, user.hashed_password):
+        logger.warning(f"Failed login attempt for username: '{form_data.username}'")
         raise HTTPException(status_code=401, detail="Incorrect username or password.")
 
     access_token = create_access_token(data={"sub": user.username})
+    logger.info(f"User logged in successfully: '{user.username}'")
 
     return {"access_token": access_token, "token_type": "bearer"}
 
 
 # ------------------------------------------------------------------
-# ENDPOINT: Upload a PDF — now PROTECTED (requires login)
+# ENDPOINT: Upload a PDF — PROTECTED (requires login)
 # ------------------------------------------------------------------
 @app.post("/upload")
 async def upload_pdf(
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user)   # <-- this line protects the endpoint
+    current_user: User = Depends(get_current_user)
 ):
+    logger.info(f"Upload request from user '{current_user.username}': {file.filename}")
+
     if not file.filename.endswith(".pdf"):
+        logger.warning(f"Rejected non-PDF upload attempt: {file.filename}")
         raise HTTPException(status_code=400, detail="Only PDF files are supported.")
 
     save_path = os.path.join(RAW_PDF_DIR, file.filename)
@@ -113,7 +123,9 @@ async def upload_pdf(
 
     try:
         chunk_count = ingestion_pipeline.ingest(save_path, source_filename=file.filename)
+        logger.info(f"Successfully ingested '{file.filename}': {chunk_count} chunks stored.")
     except Exception as e:
+        logger.error(f"Ingestion failed for '{file.filename}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to process PDF: {str(e)}")
 
     return {
@@ -125,24 +137,30 @@ async def upload_pdf(
 
 
 # ------------------------------------------------------------------
-# ENDPOINT: Ask a question — now PROTECTED (requires login)
+# ENDPOINT: Ask a question — PROTECTED (requires login)
 # ------------------------------------------------------------------
 @app.post("/ask", response_model=AskResponse)
 async def ask_question(
     request: AskRequest,
-    current_user: User = Depends(get_current_user)   # <-- protects this endpoint too
+    current_user: User = Depends(get_current_user)
 ):
+    logger.info(f"Question from user '{current_user.username}': {request.question}")
+
     try:
         result = rag_pipeline.ask(
             question=request.question,
             source_filename=request.source_filename
         )
     except Exception as e:
+        logger.error(f"Failed to answer question '{request.question}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to generate answer: {str(e)}")
 
     return result
 
 
+# ------------------------------------------------------------------
+# ENDPOINT: Health check
+# ------------------------------------------------------------------
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
