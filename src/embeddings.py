@@ -3,7 +3,7 @@
 from huggingface_hub import InferenceClient
 from typing import List, Dict
 
-from config import HUGGINGFACE_API_KEY, EMBEDDING_MODEL_NAME
+from src.config import HUGGINGFACE_API_KEY, EMBEDDING_MODEL_NAME
 
 
 class EmbeddingGenerator:

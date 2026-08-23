@@ -1,8 +1,41 @@
-# Tells git to ignore the following files and directories
-
+# Virtual environment
 venv/
+env/
+
+# data folder
+data/
+
+data/eval_dataset.json
+# Environment variables & secrets
 .env
+
+# Python cache
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+
+# Vector database (persisted embeddings — regenerable, don't commit)
+data/chroma_db/
+
+# SQLite user database (contains hashed passwords — don't commit)
+data/app.db
+
+# Uploaded PDFs (user data — don't commit, can be large)
 data/raw_pdfs/*.pdf
-data/
+
+# But DO keep the folder structure itself
+!data/raw_pdfs/.gitkeep
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs (once we add logging in Step 20)
+*.log
+logs/

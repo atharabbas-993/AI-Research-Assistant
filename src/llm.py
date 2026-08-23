@@ -7,7 +7,7 @@
 # It gives us a consistent interface (same as OpenAI, Anthropic, etc. in LangChain)
 from langchain_groq import ChatGroq
 
-from config import GROQ_API_KEY, LLM_MODEL_NAME, LLM_TEMPERATURE
+from src.config import GROQ_API_KEY, LLM_MODEL_NAME, LLM_TEMPERATURE
 
 
 class LLM:

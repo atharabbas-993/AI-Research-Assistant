@@ -3,7 +3,7 @@
 import cohere
 from typing import List, Dict
 
-from config import COHERE_API_KEY, RERANK_MODEL_NAME
+from src.config import COHERE_API_KEY, RERANK_MODEL_NAME
 
 
 class Reranker:

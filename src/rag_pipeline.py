@@ -1,10 +1,10 @@
 from typing import Dict, Optional
 
-from retriever import Retriever
-from reranker import Reranker
-from prompt import build_prompt
-from llm import LLM
-from config import RETRIEVE_TOP_K, RERANK_TOP_N, MIN_RELEVANCE_SCORE
+from src.retriever import Retriever
+from src.reranker import Reranker
+from src.prompt import build_prompt
+from src.llm import LLM
+from src.config import RETRIEVE_TOP_K, RERANK_TOP_N, MIN_RELEVANCE_SCORE
 
 
 class RAGPipeline:

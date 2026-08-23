@@ -2,8 +2,8 @@
 
 from typing import List, Dict, Optional
 
-from embeddings import EmbeddingGenerator
-from vectorstore import VectorStore
+from src.embeddings import EmbeddingGenerator
+from src.vectorstore import VectorStore
 
 
 class Retriever:

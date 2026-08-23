@@ -2,7 +2,7 @@ import json
 import time
 from typing import List, Dict
 
-from rag_pipeline import RAGPipeline
+from src.rag_pipeline import RAGPipeline
 
 
 def load_eval_dataset(path: str) -> List[Dict]:

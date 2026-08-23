@@ -8,8 +8,7 @@
 import chromadb
 from typing import List, Dict
 
-from config import CHROMA_DB_DIR, CHROMA_COLLECTION_NAME
-
+from src.config import CHROMA_DB_DIR, CHROMA_COLLECTION_NAME
 
 class VectorStore:
     """
