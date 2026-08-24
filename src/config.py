@@ -4,6 +4,7 @@
 # src/config.py
 
 import os
+import secrets
 from dotenv import load_dotenv
 
 # Load variables from .env file into environment
@@ -89,3 +90,27 @@ DATABASE_URL = f"sqlite:///{os.path.join(BASE_DIR, 'data', 'app.db')}"
 # ------------------------
 LOG_LEVEL = "INFO"
 LOG_FILE = os.path.join(BASE_DIR, "logs", "app.log")
+
+# ------------------------
+# Startup Validation
+# ------------------------
+def validate_config():
+    """
+    Checks that all REQUIRED environment variables are set.
+    Called once when the app starts — fails fast with a clear
+    error message instead of crashing later mid-request with a
+    confusing error.
+    """
+    required_vars = {
+        "HUGGINGFACE_API_KEY": HUGGINGFACE_API_KEY,
+        "GROQ_API_KEY": GROQ_API_KEY,
+        "COHERE_API_KEY": COHERE_API_KEY,
+    }
+
+    missing = [name for name, value in required_vars.items() if not value]
+
+    if missing:
+        raise EnvironmentError(
+            f"Missing required environment variables: {', '.join(missing)}. "
+            f"Check your .env file."
+        )

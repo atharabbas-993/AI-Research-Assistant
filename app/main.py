@@ -1,5 +1,3 @@
-# app/main.py
-
 import os
 import shutil
 
@@ -11,12 +9,25 @@ from sqlalchemy.orm import Session
 
 from src.ingestion_pipeline import IngestionPipeline
 from src.rag_pipeline import RAGPipeline
-from src.config import RAW_PDF_DIR
+from src.config import RAW_PDF_DIR, validate_config
 from src.database import init_db, get_db, User
 from src.auth import hash_password, verify_password, create_access_token, get_current_user
 from src.logger import setup_logger
 
 logger = setup_logger(__name__)
+
+# ------------------------------------------------------------------
+# STEP 1 of startup: Validate configuration FIRST — before anything
+# else runs. If a required API key is missing, we want the app to
+# fail immediately and clearly, not crash later mid-request when a
+# real user happens to trigger the missing piece.
+# ------------------------------------------------------------------
+try:
+    validate_config()
+    logger.info("Configuration validated successfully.")
+except EnvironmentError as e:
+    logger.critical(f"Startup aborted — configuration error: {e}")
+    raise
 
 # ------------------------------------------------------------------
 # Create the FastAPI app instance
@@ -30,7 +41,9 @@ app = FastAPI(
 # Create the users table on startup if it doesn't exist yet
 init_db()
 
-# Initialize pipelines ONCE, when the app starts
+# Initialize pipelines ONCE, when the app starts.
+# These are only reached if validate_config() succeeded above —
+# so we know all required API keys exist before we try to use them.
 ingestion_pipeline = IngestionPipeline()
 rag_pipeline = RAGPipeline()
 
