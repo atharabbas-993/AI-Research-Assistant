@@ -1,11 +1,7 @@
-# LLM connection
-# 	Only job: send prompt to LLM → get answer	Used by rag_pipeline.py
+# src/llm.py
 
-
-
-# ChatGroq is LangChain's official wrapper for Groq's chat models.
-# It gives us a consistent interface (same as OpenAI, Anthropic, etc. in LangChain)
 from langchain_groq import ChatGroq
+from typing import Iterator
 
 from src.config import GROQ_API_KEY, LLM_MODEL_NAME, LLM_TEMPERATURE
 
@@ -13,15 +9,13 @@ from src.config import GROQ_API_KEY, LLM_MODEL_NAME, LLM_TEMPERATURE
 class LLM:
     """
     Wraps our LLM connection so we initialize it once and reuse it
-    across multiple questions — same reasoning as EmbeddingGenerator
-    and VectorStore: load once, reuse many times.
+    across multiple questions.
     """
 
     def __init__(self):
         if not GROQ_API_KEY:
             raise ValueError("GROQ_API_KEY not found. Check your .env file.")
 
-        # Initialize the Groq chat model through LangChain's standard interface.
         self.model = ChatGroq(
             model=LLM_MODEL_NAME,
             temperature=LLM_TEMPERATURE,
@@ -29,16 +23,15 @@ class LLM:
         )
 
     def generate_answer(self, prompt: str) -> str:
-        """
-        Sends the final prompt to the LLM and returns its answer.
-
-        Args:
-            prompt (str): The full prompt built in prompt.py (instructions + context + question)
-
-        Returns:
-            str: The LLM's generated answer text.
-        """
-        # invoke() sends the prompt and returns an AIMessage object.
-        # We only care about its .content (the actual text answer).
+        """Non-streaming: returns the complete answer at once."""
         response = self.model.invoke(prompt)
         return response.content
+
+    def generate_answer_stream(self, prompt: str) -> Iterator[str]:
+        """
+        Streaming version: yields chunks of the answer as they're
+        generated, instead of waiting for the full response.
+        """
+        for chunk in self.model.stream(prompt):
+            if chunk.content:
+                yield chunk.content

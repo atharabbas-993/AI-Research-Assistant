@@ -1,8 +1,11 @@
+# app/main.py
+
 import os
 import shutil
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.orm import Session
@@ -17,10 +20,8 @@ from src.logger import setup_logger
 logger = setup_logger(__name__)
 
 # ------------------------------------------------------------------
-# STEP 1 of startup: Validate configuration FIRST — before anything
-# else runs. If a required API key is missing, we want the app to
-# fail immediately and clearly, not crash later mid-request when a
-# real user happens to trigger the missing piece.
+# Validate configuration FIRST — fail fast if any required env var
+# is missing, before initializing anything else.
 # ------------------------------------------------------------------
 try:
     validate_config()
@@ -41,9 +42,7 @@ app = FastAPI(
 # Create the users table on startup if it doesn't exist yet
 init_db()
 
-# Initialize pipelines ONCE, when the app starts.
-# These are only reached if validate_config() succeeded above —
-# so we know all required API keys exist before we try to use them.
+# Initialize pipelines ONCE, when the app starts
 ingestion_pipeline = IngestionPipeline()
 rag_pipeline = RAGPipeline()
 
@@ -115,7 +114,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
 
 # ------------------------------------------------------------------
-# ENDPOINT: Upload a PDF — PROTECTED (requires login)
+# ENDPOINT: Upload a PDF — PROTECTED
 # ------------------------------------------------------------------
 @app.post("/upload")
 async def upload_pdf(
@@ -150,7 +149,7 @@ async def upload_pdf(
 
 
 # ------------------------------------------------------------------
-# ENDPOINT: Ask a question — PROTECTED (requires login)
+# ENDPOINT: Ask a question (non-streaming) — PROTECTED
 # ------------------------------------------------------------------
 @app.post("/ask", response_model=AskResponse)
 async def ask_question(
@@ -169,6 +168,31 @@ async def ask_question(
         raise HTTPException(status_code=500, detail=f"Failed to generate answer: {str(e)}")
 
     return result
+
+
+# ------------------------------------------------------------------
+# ENDPOINT: Ask a question (streaming) — PROTECTED
+# ------------------------------------------------------------------
+@app.post("/ask/stream")
+async def ask_question_stream(
+    request: AskRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Streams the answer progressively instead of waiting for the full response."""
+    logger.info(f"Streaming question from user '{current_user.username}': {request.question}")
+
+    def generate():
+        try:
+            for chunk in rag_pipeline.ask_stream(
+                question=request.question,
+                source_filename=request.source_filename
+            ):
+                yield chunk
+        except Exception as e:
+            logger.error(f"Streaming failed: {e}", exc_info=True)
+            yield f"\n\n[Error: {str(e)}]"
+
+    return StreamingResponse(generate(), media_type="text/plain")
 
 
 # ------------------------------------------------------------------
