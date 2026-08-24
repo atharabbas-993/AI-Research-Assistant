@@ -6,6 +6,7 @@ import shutil
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.orm import Session
@@ -37,6 +38,20 @@ app = FastAPI(
     title="AI Research Assistant API",
     description="Upload research papers and ask questions about them.",
     version="1.0.0"
+)
+
+# ------------------------------------------------------------------
+# CORS Middleware — allows our separate frontend (a plain HTML file,
+# running on a different origin than the API) to call this backend.
+# allow_origins=["*"] is fine for local learning/dev, but should be
+# restricted to your actual frontend's domain in production.
+# ------------------------------------------------------------------
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Create the users table on startup if it doesn't exist yet
