@@ -1,0 +1,17 @@
+# .dockerignore
+
+venv/
+env/
+__pycache__/
+*.pyc
+.env
+.git/
+.gitignore
+data/chroma_db/
+data/app.db
+data/raw_pdfs/*.pdf
+logs/
+frontend/
+.vscode/
+.idea/
+README.md
