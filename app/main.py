@@ -10,6 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.orm import Session
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from src.ingestion_pipeline import IngestionPipeline
 from src.rag_pipeline import RAGPipeline
@@ -19,6 +21,14 @@ from src.auth import hash_password, verify_password, create_access_token, get_cu
 from src.logger import setup_logger
 
 logger = setup_logger(__name__)
+
+
+# ... existing code ...
+
+# Serve the frontend's static files (CSS/JS are inline, so just the HTML matters)
+@app.get("/")
+async def serve_frontend():
+    return FileResponse("frontend/index.html")
 
 # ------------------------------------------------------------------
 # Validate configuration FIRST — fail fast if any required env var
@@ -39,6 +49,7 @@ app = FastAPI(
     description="Upload research papers and ask questions about them.",
     version="1.0.0"
 )
+
 
 # ------------------------------------------------------------------
 # CORS Middleware — allows our separate frontend (a plain HTML file,
