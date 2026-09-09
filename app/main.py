@@ -25,10 +25,6 @@ logger = setup_logger(__name__)
 
 # ... existing code ...
 
-# Serve the frontend's static files (CSS/JS are inline, so just the HTML matters)
-@app.get("/")
-async def serve_frontend():
-    return FileResponse("frontend/index.html")
 
 # ------------------------------------------------------------------
 # Validate configuration FIRST — fail fast if any required env var
@@ -49,6 +45,10 @@ app = FastAPI(
     description="Upload research papers and ask questions about them.",
     version="1.0.0"
 )
+
+@app.get("/")
+async def serve_frontend():
+    return FileResponse("frontend/index.html")
 
 
 # ------------------------------------------------------------------
