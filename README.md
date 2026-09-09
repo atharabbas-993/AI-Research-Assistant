@@ -2,6 +2,9 @@
 
 A production-structured RAG (Retrieval-Augmented Generation) application that lets users upload research papers (PDFs) and ask questions answered directly from that content, with citations.
 
+
+**Live demo:** https://ai-research-assistant-6ov1.onrender.com/
+
 ## Features
 - PDF upload and ingestion (chunking, embedding, vector storage)
 - Semantic search with reranking (Cohere) for accurate retrieval
